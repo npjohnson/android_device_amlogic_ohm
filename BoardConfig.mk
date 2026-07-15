@@ -5,7 +5,6 @@
 #
 
 DEVICE_PATH := device/khadas/kvim1s
-KERNEL_PATH := $(DEVICE_PATH)-kernel/5.15
 
 
 ## Bluetooth
@@ -19,7 +18,12 @@ TARGET_DTB_NAME := kvim1s
 TARGET_DTBO_NAME := android_overlay_dt
 
 ## Kernel
-TARGET_KERNEL_CONFIG := lineage_kvim1s_defconfig
+TARGET_KERNEL_PLATFORM_TARGET := kvim1s
+TARGET_KERNEL_SOURCE := vendor/khadas/kvim1s-build
+BOARD_KERNEL_IMAGE_NAME := Image.lz4
+BOARD_VENDOR_KERNEL_MODULES_LOAD := $(strip $(shell cat $(DEVICE_PATH)/vendor_dlkm.modules.load))
+BOOT_KERNEL_MODULES := $(strip $(shell cat $(DEVICE_PATH)/vendor_boot.modules.load))
+BOARD_VENDOR_RAMDISK_KERNEL_MODULES_LOAD := $(BOOT_KERNEL_MODULES)
 
 ## Partitions
 BOARD_SUPER_PARTITION_SIZE := 2084569088
