@@ -7,3 +7,14 @@ amlogic-irblaster.ko
 amlogic-phy-debug.ko
 amlogic-inphy.ko
 dwc_otg.ko
+amlogic-gkitool.ko
+amlogic-cpuinfo.ko
+amlogic-debug-iotrace.ko
+amlogic-pm.ko
+amlogic-power.ko
+amlogic-gpio.ko
+amlogic-secmon.ko
+amlogic-debug.ko
+amlogic-tee.ko
+tee.ko
+optee.ko
