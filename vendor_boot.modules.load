@@ -1,5 +1,6 @@
 amlogic-hwspinlock.ko
 aml_smmu.ko
+amlogic-input.ko
 amlogic-adc.ko
 amlogic-usb.ko
 amlogic-irblaster.ko
