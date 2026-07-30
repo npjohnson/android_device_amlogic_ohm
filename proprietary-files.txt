@@ -4,6 +4,10 @@
 ## Aucpu - from ECHOLINK/SEI700BEL/YYZ:14/UKG3.250803.001/5998:user/release-keys
 vendor/lib/firmware/aucpu_fw.bin
 
+## BT
+vendor/etc/bluetooth/BCM4345C5.hcd
+vendor/etc/bluetooth/bt_vendor.conf
+
 ## Keylayout
 vendor/usr/keylayout/Vendor_0001_Product_0001.kl
 
@@ -23,3 +27,8 @@ vendor/lib/teetz/d83c3c4a-9e8d-4e4e-ad30-9d40e137f689.ta
 vendor/lib/teetz/e043cde0-61d0-11e5-9c26-0002a5d5c51b.ta
 vendor/lib/teetz/e92a43ab-b4c8-4450-aa12-b1516259613b.ta
 vendor/lib/teetz/ff2a4bea-ef6d-11e6-89cc-d4ae52a7b3b3.ta
+
+## Wifi - installed under the firmware_class search path (/vendor/lib/firmware/)
+## set by init.amlogic.media.rc, so dhd's firmware_path=/wifi/ resolves.
+vendor/firmware/wifi/fw_bcm43456c5_ag.bin:vendor/lib/firmware/wifi/fw_bcm43456c5_ag.bin
+vendor/firmware/wifi/nvram_ap6256.txt:vendor/lib/firmware/wifi/nvram_ap6256.txt
