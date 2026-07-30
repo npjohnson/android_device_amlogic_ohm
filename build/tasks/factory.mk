@@ -23,6 +23,61 @@ RADIO_FILES := $(wildcard $(FACTORY_PATH)/bootfiles/*)
 $(foreach f, $(notdir $(RADIO_FILES)), \
     $(call add-radio-file,factory/bootfiles/$(f)))
 
+## odm_ext / oem
+# Both are slot-suffixed in gpt.bin and both are required first_stage_mount
+# entries in fstab.amlogic, but neither is a standard AOSP image, so they were
+# absent from AB_OTA_PARTITIONS and *_b stayed blank. The first OTA - which
+# switches to slot B - therefore made first-stage init panic and bootloop.
+#
+# An OTA can only write a partition that has an image in the target-files zip,
+# so both are staged as radio images: that puts them in RADIO/, and
+# BOARD_PACK_RADIOIMAGES mirrors them into IMAGES/, which is where
+# brillo_update_payload resolves them
+# (system/update_engine/scripts/brillo_update_payload:474).
+#
+# odm_ext stays a prebuilt - it holds real Amlogic content (etc/tvconfig, PQ
+# tables, logo_files) that this tree has no sources for. oem is built below.
+KHADAS_ODM_EXT_IMAGE := $(PRODUCT_OUT)/odm_ext.img
+KHADAS_OEM_IMAGE := $(PRODUCT_OUT)/oem.img
+
+# odm_ext_a.PARTITION is an Android sparse image; update_engine writes raw bytes.
+$(KHADAS_ODM_EXT_IMAGE): $(FACTORY_PATH)/odm_ext_a.PARTITION $(SIMG2IMG)
+	@echo "Target odm_ext image: $@"
+	$(hide) mkdir -p $(dir $@)
+	$(hide) $(SIMG2IMG) $< $@
+
+# oem is built from source rather than shipped as a blob. Nothing on this tree
+# reads /oem - PRODUCT_OEM_PROPERTIES is set nowhere, and init no longer imports
+# /oem/oem.prop - so the image is an empty ext4, which beats factory/oem_a.
+# PARTITION: a 2022 eng blob whose only file sets stock Khadas identity props
+# (ro.product.brand=Khadas, ro.product.model=VIM1S) that would fight LineageOS's
+# if anything ever did import them.
+#
+# This duplicates build/make/core/tasks/oem_image.mk because that task is gated
+# on 'oem_image' being an explicit make goal, so it never runs in a normal build.
+#
+# BUILD_IMAGE honours extfs_sparse_flag=-s, so this is an *Android sparse*
+# image, unlike the raw factory/oem_a.PARTITION it replaces. The OTA path copes
+# (brillo_update_payload:486 sniffs the 0x3aff26ed magic and runs simg2img), but
+# factory/image_upgrade.cfg had to change to file_type="sparse" - writing the
+# 45 KB sparse container raw left /oem unmountable and panicked first-stage init.
+INTERNAL_OEMIMAGE_FILES := \
+    $(filter $(TARGET_OUT_OEM)/%,$(ALL_DEFAULT_INSTALLED_MODULES))
+oemimage_intermediates := $(call intermediates-dir-for,PACKAGING,oem)
+
+$(KHADAS_OEM_IMAGE): $(INTERNAL_USERIMAGES_DEPS) $(INTERNAL_OEMIMAGE_FILES)
+	$(call pretty,"Target oem fs image: $@")
+	@mkdir -p $(TARGET_OUT_OEM)
+	@mkdir -p $(oemimage_intermediates) && rm -rf $(oemimage_intermediates)/oem_image_info.txt
+	$(call generate-image-prop-dictionary, $(oemimage_intermediates)/oem_image_info.txt,oem,skip_fsck=true)
+	PATH=$(INTERNAL_USERIMAGES_BINARY_PATHS):$$PATH \
+	    $(BUILD_IMAGE) \
+	        $(TARGET_OUT_OEM) $(oemimage_intermediates)/oem_image_info.txt $@ $(TARGET_OUT)
+	$(call assert-max-image-size,$@,$(BOARD_OEMIMAGE_PARTITION_SIZE))
+
+INSTALLED_RADIOIMAGE_TARGET += $(KHADAS_ODM_EXT_IMAGE) $(KHADAS_OEM_IMAGE)
+BOARD_PACK_RADIOIMAGES += odm_ext.img oem.img
+
 PRODUCT_INSTALL_OUT := $(PRODUCT_OUT)/aml_install
 PRODUCT_UPGRADE_OUT := $(PRODUCT_OUT)/aml_upgrade
 INSTALL_PACKAGE_CONFIG_FILE := $(PRODUCT_INSTALL_OUT)/image_install.cfg
@@ -47,6 +102,7 @@ UPGRADE_IMAGES := \
     dtbo.img \
     init_boot.img \
     logo.img \
+    oem.img \
     super_empty.img \
     super.img \
     vbmeta_system.img \
@@ -124,7 +180,7 @@ endif
 	$(hide) $(call aml-copy-upgrade-file, $(FACTORY_PATH)/image_upgrade.cfg, image.cfg)
 	$(hide) $(call aml-copy-upgrade-file, $(FACTORY_PATH)/platform.conf)
 	$(hide) $(call aml-copy-upgrade-file, $(FACTORY_PATH)/odm_ext_a.PARTITION)
-	$(hide) $(call aml-copy-upgrade-file, $(FACTORY_PATH)/oem_a.PARTITION)
+	$(hide) $(call aml-copy-upgrade-file, $(KHADAS_OEM_IMAGE))
 	$(hide) $(call aml-copy-upgrade-file, $(PRODUCT_OUT)/logo.img)
 	$(hide) $(call aml-copy-upgrade-file, $(PRODUCT_OUT)/boot.img)
 	$(hide) $(call aml-copy-upgrade-file, $(PRODUCT_OUT)/dtb.img)
